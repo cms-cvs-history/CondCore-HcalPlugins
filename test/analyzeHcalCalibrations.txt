@@ -1,0 +1,58 @@
+# Configuration file for EventSetupTest_t
+
+process TEST = {
+
+	path p = { get & analyze & print }
+
+
+	es_source = PoolDBESSource { VPSet toGet = {
+                                   {string record = "HcalPedestalsRcd"
+                                    string tag    = "HcalPedestals_default_v1"
+                                    },
+                                   {string record = "HcalPedestalWidthsRcd"
+                                    string tag =    "HcalPedestalWidths_default_v1"
+                                    },
+                                   {string record = "HcalGainsRcd"
+                                    string tag =    "HcalGains_default_v1"
+                                    },
+                                   {string record = "HcalGainWidthsRcd"
+                                    string tag =    "HcalGainWidths_default_v1"
+                                    }
+                                   }
+		    		    bool loadAll = true
+#                                    string connect = "oracle://cmscald"
+                                    string connect = "sqlite_file:hcal_default_calib.db"
+#				    string connect = "frontier://edge.fnal.gov:8000/FrontierCMS"
+			            string timetype = "runnumber" 
+				   }
+
+	module print = AsciiOutputModule { }
+	
+
+	source = EmptyInputService {untracked int32 maxEvents = 10 untracked uint32 firstRun = 1 untracked uint32 numberEventsInRun = 1 }
+
+	module get = EventSetupRecordDataGetter { 
+		   VPSet toGet = {
+			{
+			 string record = "HcalPedestalWidthsRcd"
+			 vstring data = {"HcalPedestalWidths"} 
+			}, 
+			{
+			 string record = "HcalGainsRcd"
+			 vstring data = {"HcalPedestals"} 
+			}, 
+			{
+			 string record = "HcalPedestalsRcd"
+			 vstring data = {"HcalGains"} 
+			}, 
+			{
+			 string record = "HcalGainWidthsRcd"
+			 vstring data = {"HcalGainWidths"} 
+			} 
+	           	           }
+		   untracked bool verbose = true 
+	}
+
+	module analyze = HcalCalibrationsAnalizer { }
+
+}

@@ -1,0 +1,17 @@
+<use name=clhep>
+<use name=FWCore/ParameterSet>
+<use name=CondFormats/Calibration>
+<use name=CondFormats/EcalObjects>
+<use name=CondFormats/HcalObjects>
+<use name=CalibCalorimetry/HcalAlgos>
+<use name=CondCore/DBCommon>
+<use name=CondCore/IOVService>
+<use name=CondCore/MetaDataService>
+<use name=CondCore/ESSources>
+<use name=FWCore/Framework>	
+<use name=CondFormats/DataRecord>
+<use name=FWCore/Services>
+<bin file=initDefaultHcalCalibs.cpp></bin>	
+<library file=stubs/HcalCalibrationsAnalyzer.cc name=HcalCalibrationsAnalyzer>
+        <flags SEAL_PLUGIN_NAME="HcalCalibrationsAnalyzer">
+</library>
