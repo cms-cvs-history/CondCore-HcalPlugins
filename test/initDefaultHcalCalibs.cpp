@@ -15,25 +15,25 @@
 #include "CondFormats/HcalObjects/interface/HcalGainWidths.h"
 #include "DataFormats/HcalDetId/interface/HcalDetId.h"
 
-bool validHcalCell (const cms::HcalDetId& fCell) {
+bool validHcalCell (const HcalDetId& fCell) {
   if (fCell.iphi () <=0)  return false;
   int absEta = abs (fCell.ieta ());
   int phi = fCell.iphi ();
   int depth = fCell.depth ();
-  cms::HcalSubdetector det = fCell.subdet ();
+  HcalSubdetector det = fCell.subdet ();
   // phi ranges
   if ((absEta >= 40 && phi > 18) ||
       (absEta >= 21 && phi > 36) ||
       phi > 72)   return false;
   if (absEta <= 0)       return false;
-  else if (absEta <= 14) return (depth == 1 || depth == 4) && det == cms::HcalBarrel; 
-  else if (absEta == 15) return (depth == 1 || depth == 2 || depth == 4) && det == cms::HcalBarrel; 
-  else if (absEta == 16) return depth >= 1 && depth <= 2 && det == cms::HcalBarrel || depth == 3 && det == cms::HcalEndcap; 
-  else if (absEta == 17) return depth == 1 && det == cms::HcalEndcap; 
-  else if (absEta <= 26) return depth >= 1 && depth <= 2 && det == cms::HcalEndcap; 
-  else if (absEta <= 28) return depth >= 1 && depth <= 3 && det == cms::HcalEndcap; 
-  else if (absEta == 29) return depth >= 1 && depth <= 2 && (det == cms::HcalEndcap || det == cms::HcalForward); 
-  else if (absEta <= 41) return depth >= 1 && depth <= 2 && det == cms::HcalForward;
+  else if (absEta <= 14) return (depth == 1 || depth == 4) && det == HcalBarrel; 
+  else if (absEta == 15) return (depth == 1 || depth == 2 || depth == 4) && det == HcalBarrel; 
+  else if (absEta == 16) return depth >= 1 && depth <= 2 && det == HcalBarrel || depth == 3 && det == HcalEndcap; 
+  else if (absEta == 17) return depth == 1 && det == HcalEndcap; 
+  else if (absEta <= 26) return depth >= 1 && depth <= 2 && det == HcalEndcap; 
+  else if (absEta <= 28) return depth >= 1 && depth <= 3 && det == HcalEndcap; 
+  else if (absEta == 29) return depth >= 1 && depth <= 2 && (det == HcalEndcap || det == HcalForward); 
+  else if (absEta <= 41) return depth >= 1 && depth <= 2 && det == HcalForward;
   else return false;
 }
 
@@ -64,18 +64,14 @@ int main (int argn, char** argv){
     for (int phi = 0; phi < 100; phi++) {
       for (int depth = 1; depth < 5; depth++) {
 	for (int det = 1; det < 5; det++) {
-	  cms::HcalDetId cell ((cms::HcalSubdetector) det, eta, phi, depth);
+	  HcalDetId cell ((HcalSubdetector) det, eta, phi, depth);
 	  if ( validHcalCell(cell)) {
 	    uint32_t cellId = cell.rawId(); 
 	    HcalDbServiceHardcode srv;
-	    pedestals->addValue (cellId, srv.pedestal (cell, 1), srv.pedestal (cell, 2),
-				srv.pedestal (cell, 3), srv.pedestal (cell, 4));
-	    pedestalWidths->addValue (cellId, srv.pedestalError (cell, 1), srv.pedestalError (cell, 2),
-				srv.pedestalError (cell, 3), srv.pedestalError (cell, 4));
-	    gains->addValue (cellId, srv.gain (cell, 1), srv.gain (cell, 2),
-				srv.gain (cell, 3), srv.gain (cell, 4));
-	    gainWidths->addValue (cellId, srv.gainError (cell, 1), srv.gainError (cell, 2),
-				srv.gainError (cell, 3), srv.gainError (cell, 4));
+	    pedestals->addValue (cellId, srv.pedestals (cell));
+	    pedestalWidths->addValue (cellId, srv.pedestalErrors (cell));
+	    gains->addValue (cellId, srv.gains (cell));
+	    gainWidths->addValue (cellId, srv.gainErrors (cell));
 
 	    counter++;
 	    std::cout << counter << "  Added channel ID " << cellId 

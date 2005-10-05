@@ -46,22 +46,21 @@ namespace edmtest
   void
    HcalCalibrationsAnalizer::analyze(const edm::Event& e, const edm::EventSetup& context)
   {
-    using namespace edm::eventsetup;
     // Context is not used.
     std::cout <<"HcalCalibrationsAnalizer::analyze-> I AM IN RUN NUMBER "<<e.id().run() <<std::endl;
     std::cout <<"HcalCalibrationsAnalizer::analyze->  ---EVENT NUMBER "<<e.id().run() <<std::endl;
-    edm::eventsetup::ESHandle<HcalPedestals> pPeds;
+    edm::ESHandle<HcalPedestals> pPeds;
     context.get<HcalPedestalsRcd>().get(pPeds);
-    edm::eventsetup::ESHandle<HcalPedestalWidths> pPedWs;
+    edm::ESHandle<HcalPedestalWidths> pPedWs;
     context.get<HcalPedestalWidthsRcd>().get(pPedWs);
-    edm::eventsetup::ESHandle<HcalGains> pGains;
+    edm::ESHandle<HcalGains> pGains;
     context.get<HcalGainsRcd>().get(pGains);
-    edm::eventsetup::ESHandle<HcalGainWidths> pGainWs;
+    edm::ESHandle<HcalGainWidths> pGainWs;
     context.get<HcalGainWidthsRcd>().get(pGainWs);
     //call tracker code
     //
     std::cout <<" Hcal peds for channel HB eta=15, phi=5, depth=2 "<<std::endl;
-    int channelID = cms::HcalDetId (cms::HcalBarrel, 15, 5, 2).rawId();
+    int channelID = HcalDetId (HcalBarrel, 15, 5, 2).rawId();
     const HcalPedestals* myped=pPeds.product();
     const HcalPedestalWidths* mypedW=pPedWs.product();
     const HcalGains* mygain=pGains.product();
