@@ -139,7 +139,7 @@ namespace {
 	parser.parse();
 	
 	//	mCatalog.setWriteCatalog (parser.contactstring ());
-	mCatalog.addReadCatalog(parser.contactstring());
+	mCatalog.setWriteCatalog(parser.contactstring());
 	mCatalog.connect();
 	mCatalog.start();
 	mService = pool::DataSvcFactory::create (&mCatalog);
@@ -168,7 +168,8 @@ namespace {
 	mPlacement.setContainerName (fContainer);
 	ref.markWrite (mPlacement);
 	// IOV business
-	iovref->iov.insert (std::make_pair (fMaxRun, ref.toString ()));
+	unsigned maxRun = fMaxRun == 0 ? 0xffffffff : fMaxRun;
+	iovref->iov.insert (std::make_pair (maxRun, ref.toString ()));
 	mPlacement.setContainerName ("IOV");
 	iovref.markWrite (mPlacement);
 	mService->transaction().commit();
@@ -210,7 +211,7 @@ namespace {
       pool::Ref<cond::IOV> iov(fDB.service (), iovToken);
       // scan IOV, search for valid data
       for (std::map<unsigned long,std::string>::iterator iovi = iov->iov.begin (); iovi != iov->iov.end (); iovi++) {
-	if (iovi->first > fRun) return iovi->second; 
+	if (fRun <= iovi->first) return iovi->second; 
       }
     }
     catch( const pool::RelationalTableNotFound& e ){
@@ -228,15 +229,14 @@ namespace {
     return "";
   }
   
-  bool getDataFromDb (const std::string& fWhat, PoolData& fDB, const std::string& fTag, unsigned fRun) {
-    bool result = false;
+template <class T>
+ pool::Ref<T> getDataFromDb (PoolData& fDB, const std::string& fTag, unsigned fRun) {
+  pool::Ref<T> result;
     fDB.service ()->transaction().start(pool::ITransaction::READ);
-    if (fWhat == "pedestals") {
-      std::string token = getToken (fDB, fTag, fRun);
-      if (token.empty ()) return false;
+    std::string token = getToken (fDB, fTag, fRun);
+    if (!token.empty ()) {
       try {
-	gPedestals = pool::Ref <HcalPedestals> (fDB.service (), token);
-	result = true;
+	result = pool::Ref <T> (fDB.service (), token);
       }
       catch( const pool::RelationalTableNotFound& e ){
 	std::cerr << "getDataFromDb-> pool::RelationalTableNotFound Exception" << std::endl;
@@ -250,34 +250,27 @@ namespace {
     }
     return result;
   }
-  
-  void dumpData (const std::string& fWhat, const std::string& fOtput) {
+
+  template <class T> 
+  void dumpData (pool::Ref<T>& fObject, const std::string& fOtput) {
     std::ofstream out (fOtput.c_str());
     char buffer [1024];
-    sprintf (buffer, "# %s\n", fWhat.c_str());
-    out << buffer;
     sprintf (buffer, "# %4s %4s %4s %4s %8s %8s %8s %8s %10s\n", "eta", "phi", "dep", "det", "cap1", "cap2", "cap3", "cap4", "HcalDetId");
     out << buffer;
-    if (fWhat == "pedestals") {
-      if (gPedestals.isNull ()) return;
-      std::vector<unsigned long> channels = gPedestals->getAllChannels ();
-      for (std::vector<unsigned long>::iterator channel = channels.begin ();
-	   channel !=  channels.end ();
-	   channel++) {
-	HcalDetId id ((uint32_t) *channel);
-	const float* values = gPedestals->getValues (*channel);
-	std::string subdet = "HB";
-	if (id.subdet() == HcalEndcap) subdet = "HE";
-	else if (id.subdet() == HcalForward) subdet = "HF";
-	if (values) {
-	  sprintf (buffer, "  %4i %4i %4i %4s %8.5f %8.5f %8.5f %8.5f %10X\n",
-		   id.ieta(), id.iphi(), id.depth (), subdet.c_str (), values[0], values[1], values[2], values[3], (unsigned)*channel);
-	  out << buffer;
-	}
+    std::vector<unsigned long> channels = fObject->getAllChannels ();
+    for (std::vector<unsigned long>::iterator channel = channels.begin ();
+	 channel !=  channels.end ();
+	 channel++) {
+      HcalDetId id ((uint32_t) *channel);
+      const float* values = fObject->getValues (*channel);
+      std::string subdet = "HB";
+      if (id.subdet() == HcalEndcap) subdet = "HE";
+      else if (id.subdet() == HcalForward) subdet = "HF";
+      if (values) {
+	sprintf (buffer, "  %4i %4i %4i %4s %8.5f %8.5f %8.5f %8.5f %10X\n",
+		 id.ieta(), id.iphi(), id.depth (), subdet.c_str (), values[0], values[1], values[2], values[3], (unsigned)*channel);
+	out << buffer;
       }
-    }
-    else {
-      std::cerr << "Unknow item to dump: " << fWhat << ", use 'pedestals' or 'gains'" << std::endl;
     }
   }
 
@@ -370,13 +363,17 @@ int main (int argn, char* argv []) {
     std::string runStr = args.getParameter ("-run");
     std::string output = args.getParameter ("-output");
     unsigned run = runStr.empty () ? 1 : atoi (runStr.c_str());
-    if (connect.empty ()) connect = "sqlite_file:hcalCalibrations_out.db";
     PoolData db (connect);
-    if (getDataFromDb (what, db, tag, run)) {
-      dumpData (what, output);
+    if (what == "pedestals") {
+      pool::Ref<HcalPedestals> ref = getDataFromDb<HcalPedestals> (db, tag, run);
+      if (!ref.isNull ()) dumpData (ref, output);
+    }
+    else if (what == "gains") {
+      pool::Ref<HcalGains> ref = getDataFromDb<HcalGains> (db, tag, run);
+      if (!ref.isNull ()) dumpData (ref, output);
     }
     else {
-      std::cerr << "ERROR Can not find data for " << what << ", tag " << tag << ", run=" << run << std::endl;
+      std::cerr << "ERROR object " << what << " is not supported" << std::endl;
     }
   }
   else if (arguments [0] == "fill") { // fill DB
@@ -385,12 +382,18 @@ int main (int argn, char* argv []) {
     std::string tag = args.getParameter ("-tag");
     std::string runStr = args.getParameter ("-run");
     std::string input = args.getParameter ("-input");
-    unsigned run = runStr.empty () ? 1 : atoi (runStr.c_str());
+    unsigned run = runStr.empty () ? 0 : atoi (runStr.c_str());
+    if (connect.empty ()) connect = "sqlite_file:hcalCalibrations_new.db";
     PoolData db (connect);
     if (what == "pedestals") {
       HcalPedestals* pedestals = new HcalPedestals ();
       readData (input, pedestals);
       db.StoreData (pedestals, run, tag, "HcalPedestals");
+    }
+    else if (what == "gains") {
+      HcalGains* gains = new HcalGains ();
+      readData (input, gains);
+      db.StoreData (gains, run, tag, "HcalGains");
     }
   }
   else {
