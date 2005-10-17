@@ -39,7 +39,6 @@
 #include "CondFormats/HcalObjects/interface/HcalGains.h"
 #include "CondFormats/HcalObjects/interface/HcalGainWidths.h"
 
-using namespace cms;
 
 namespace {
 
