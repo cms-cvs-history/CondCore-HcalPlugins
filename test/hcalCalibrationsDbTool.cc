@@ -289,15 +289,23 @@ int main (int argn, char* argv []) {
   if (dump || add) { // get metadata
     cond::MetaData md (connect);
     metadataToken = md.getToken (tag);
+    if (metadataToken.empty ()) {
+      std::cerr << "ERROR: can not find metadata for tag " << tag << std::cerr;
+      return 2;
+    }
   }
   {
     PoolData db (connect);
     
     // get IOV object
-     pool::Ref<cond::IOV> iov;
-     if (!metadataToken.empty ()) {
-       db.getObject (metadataToken, &iov);
-     }
+    pool::Ref<cond::IOV> iov;
+    if (!metadataToken.empty ()) {
+      db.getObject (metadataToken, &iov);
+      if (iov.isNull ()) {
+	std::cerr << "ERROR: can not find IOV for token " << metadataToken << std::endl;;
+	return 2;
+      }
+    }
     
     if (dump) { // dump DB
       std::string output = args.getParameter ("-output");
@@ -500,7 +508,7 @@ bool PoolData::updateObject (pool::Ref<T>* fUpdate) {
 template <class T>
 bool PoolData::storeIOV (const pool::Ref<T>& fObject, unsigned fMaxRun, pool::Ref<cond::IOV>* fIov) {
   unsigned maxRun = fMaxRun == 0 ? 0xffffffff : fMaxRun;
-  if (fIov->toString ().empty ()) {
+  if (fIov->isNull ()) {
     cond::IOV* newIov = new cond::IOV ();
     newIov->iov.insert (std::make_pair (maxRun, fObject.toString ()));
     return storeObject (newIov, "IOV", fIov);
