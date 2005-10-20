@@ -51,7 +51,7 @@
 #include "CondFormats/HcalObjects/interface/HcalCannelQuality.h"
 #include "CondFormats/HcalObjects/interface/HcalQIEData.h"
 
-using namespace cms;
+//using namespace cms;
 
 class Args {
  public:
