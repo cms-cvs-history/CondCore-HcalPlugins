@@ -9,6 +9,9 @@
 
 // other
 #include "DataFormats/HcalDetId/interface/HcalDetId.h"
+#include "DataFormats/HcalDetId/interface/HcalTrigTowerDetId.h"
+#include "DataFormats/HcalDetId/interface/HcalElectronicsId.h"
+
 
 // pool
 #include "PluginManager/PluginManager.h"
@@ -43,6 +46,10 @@
 #include "CondFormats/HcalObjects/interface/HcalPedestalWidths.h"
 #include "CondFormats/HcalObjects/interface/HcalGains.h"
 #include "CondFormats/HcalObjects/interface/HcalGainWidths.h"
+#include "CondFormats/HcalObjects/interface/HcalElectronicsMap.h"
+#include "CondFormats/HcalObjects/interface/HcalQIEShape.h"
+#include "CondFormats/HcalObjects/interface/HcalCannelQuality.h"
+#include "CondFormats/HcalObjects/interface/HcalQIEData.h"
 
 using namespace cms;
 
@@ -170,6 +177,49 @@ template <class T>
     fObject->sort ();
   }
 
+ void readData (const std::string& fInput, HcalElectronicsMap* fObject) {
+    char buffer [1024];
+
+    std::ifstream in (fInput.empty () ? "/dev/null" : fInput.c_str());
+    while (in.getline(buffer, 1024)) {
+      if (buffer [0] == '#') continue; //ignore comment
+      std::vector <std::string> items = splitString (std::string (buffer));
+      if (items.size () < 12) {
+	if (items.size () > 0) {
+	  std::cerr << "Bad line: " << buffer << "\n line must contain 12 items: i  cr sl tb dcc spigot fiber fiberchan subdet ieta iphi depth" << std::endl;
+	}
+	continue;
+      }
+      int crate = atoi (items [1].c_str());
+      int slot = atoi (items [2].c_str());
+      int top = 1;
+      if (items [3] == "b") top = 0;
+      int dcc = atoi (items [4].c_str());
+      int spigot = atoi (items [5].c_str());
+      int fiber = atoi (items [6].c_str());
+      int fiberCh = atoi (items [7].c_str());
+      HcalSubdetector subdet = HcalBarrel;
+      if (items [8] == "HE") subdet = HcalEndcap;
+      else if (items [8] == "HF") subdet = HcalForward;
+      else if (items [8] == "HT") subdet = HcalTriggerTower;
+      int eta = atoi (items [9].c_str());
+      int phi = atoi (items [10].c_str());
+      int depth = atoi (items [11].c_str());
+
+      HcalElectronicsId elId (fiberCh, fiber, spigot, dcc);
+      elId.setHTR (crate, slot, top);
+      if (subdet == HcalTriggerTower) {
+	HcalTrigTowerDetId trigId (eta, phi);
+	fObject->mapEId2tId (elId (), trigId.rawId());
+      }
+      else {
+	HcalDetId chId (subdet, eta, phi, depth);
+	fObject->mapEId2chId (elId (), chId.rawId());
+      }
+    }
+    fObject->sortByElectronicsId ();
+  }
+
 bool validHcalCell (const HcalDetId& fCell) {
   if (fCell.iphi () <=0)  return false;
   int absEta = abs (fCell.ieta ());
@@ -226,6 +276,10 @@ void fillDefaults (HcalGains* fGains) {
   fGains->sort ();
 }
 
+void fillDefaults (HcalElectronicsMap* fMap) {
+  std::cerr << "ERROR: fillDefaults (HcalElectronicsMap* fMap) is not implemented. Ignore." << std::endl;
+}
+
 void printHelp (const Args& args) {
   char buffer [1024];
   std::cout << "Tool to manipulate by Hcal Calibrations" << std::endl;
@@ -235,7 +289,7 @@ void printHelp (const Args& args) {
   std::cout << buffer;
   sprintf (buffer, " %s fill <what> <options> <parameters>\n", args.command ().c_str());
   std::cout << buffer;
-  std::cout << "  where <what> is: \n    pedestals\n    gains" << std::endl;
+  std::cout << "  where <what> is: \n    pedestals\n    gains\n    emap\n" << std::endl;
   args.printOptionsHelp ();
 }
 
@@ -266,6 +320,7 @@ int main (int argn, char* argv []) {
   bool add = arguments [0] == "add";
   bool getPedestals = arguments [1] == "pedestals";
   bool getGains = arguments [1] == "gains";
+  bool emap = arguments [1] == "emap";
   bool defaults = args.optionIsSet ("-defaults");
 
   std::string what = arguments [1];
@@ -341,6 +396,17 @@ int main (int argn, char* argv []) {
 	pool::Ref<HcalGains> ref;
 	if (defaults) fillDefaults (gains); 
 	if (!db.storeObject (gains, "HcalGains", &ref) ||
+	    !db.storeIOV (ref, run, &iov)) {
+	  std::cerr << "ERROR: failed to store object or its IOV" << std::endl;
+	  return 1;
+	}
+      }
+      else if (emap) {
+	HcalElectronicsMap* map = new HcalElectronicsMap ();
+	readData (input, map);
+	pool::Ref<HcalElectronicsMap> ref;
+	if (defaults) fillDefaults (map); 
+	if (!db.storeObject (map, "HcalElectronicsMap", &ref) ||
 	    !db.storeIOV (ref, run, &iov)) {
 	  std::cerr << "ERROR: failed to store object or its IOV" << std::endl;
 	  return 1;

@@ -1,4 +1,8 @@
 <use name=clhep>
+<use name=boost>
+<use name=DataSvc>
+<use name=Collection>
+<use name=ImplicitCollection>
 <use name=FWCore/ParameterSet>
 <use name=CondFormats/Calibration>
 <use name=CondFormats/EcalObjects>
