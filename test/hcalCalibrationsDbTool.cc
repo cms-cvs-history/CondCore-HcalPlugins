@@ -48,7 +48,7 @@
 #include "CondFormats/HcalObjects/interface/HcalGainWidths.h"
 #include "CondFormats/HcalObjects/interface/HcalElectronicsMap.h"
 #include "CondFormats/HcalObjects/interface/HcalQIEShape.h"
-#include "CondFormats/HcalObjects/interface/HcalCannelQuality.h"
+#include "CondFormats/HcalObjects/interface/HcalChannelQuality.h"
 #include "CondFormats/HcalObjects/interface/HcalQIEData.h"
 
 //using namespace cms;
