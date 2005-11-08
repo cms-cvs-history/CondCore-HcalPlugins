@@ -42,6 +42,8 @@
 
 // Hcal calibrations
 #include "CalibCalorimetry/HcalAlgos/interface/HcalDbServiceHardcode.h"
+#include "CalibCalorimetry/HcalAlgos/interface/HcalDbASCIIIO.h"
+#include "CalibCalorimetry/HcalAlgos/interface/HcalDbXml.h"
 #include "CondFormats/HcalObjects/interface/HcalPedestals.h"
 #include "CondFormats/HcalObjects/interface/HcalPedestalWidths.h"
 #include "CondFormats/HcalObjects/interface/HcalGains.h"
@@ -289,6 +291,8 @@ void printHelp (const Args& args) {
   std::cout << buffer;
   sprintf (buffer, " %s fill <what> <options> <parameters>\n", args.command ().c_str());
   std::cout << buffer;
+  sprintf (buffer, " %s add <what> <options> <parameters>\n", args.command ().c_str());
+  std::cout << buffer;
   std::cout << "  where <what> is: \n    pedestals\n    gains\n    emap\n" << std::endl;
   args.printOptionsHelp ();
 }
@@ -305,6 +309,7 @@ int main (int argn, char* argv []) {
   args.defineParameter ("-tag", "tag for the constants set");
   args.defineOption ("-help", "this help");
   args.defineOption ("-defaults", "fill default values for not specifyed cells");
+  args.defineOption ("-xml", "dump constants in XML format suitable for feeling online DB");
   
   args.parse (argn, argv);
   
@@ -322,6 +327,7 @@ int main (int argn, char* argv []) {
   bool getGains = arguments [1] == "gains";
   bool emap = arguments [1] == "emap";
   bool defaults = args.optionIsSet ("-defaults");
+  bool xml = args.optionIsSet ("-xml");
 
   std::string what = arguments [1];
 
@@ -364,13 +370,37 @@ int main (int argn, char* argv []) {
     
     if (dump) { // dump DB
       std::string output = args.getParameter ("-output");
+      if (output.empty ()) output = "/dev/null";
+      std::ofstream outStream (output.c_str ());
       if (getPedestals) {
 	pool::Ref<HcalPedestals> ref;
-	if (db.getObject (iov, run, &ref)) dumpData (*ref, output);
+	if (db.getObject (iov, run, &ref)) {
+	  if (xml) {
+	    HcalPedestalWidths widths; widths.sort ();
+	    HcalDbXml::dumpObject (outStream, run, tag, *ref, widths);
+	  }
+	  else {
+	    HcalDbASCIIIO::dumpObject (outStream, *ref);
+	  }
+	}
       }
       else if (getGains) {
 	pool::Ref<HcalGains> ref;
-	if (db.getObject (iov, run, &ref)) dumpData (*ref, output);
+	if (db.getObject (iov, run, &ref)) {
+	  if (xml) {
+	    HcalGainWidths widths; widths.sort ();
+	    HcalDbXml::dumpObject (outStream, run, tag, *ref, widths);
+	  }
+	  else {
+	    HcalDbASCIIIO::dumpObject (outStream, *ref);
+	  }
+	}
+      }
+      else if (emap) {
+	pool::Ref<HcalElectronicsMap> ref;
+	if (db.getObject (iov, run, &ref)) {
+	  HcalDbASCIIIO::dumpObject (outStream, *ref);
+	}
       }
       else {
 	std::cerr << "ERROR object " << what << " is not supported" << std::endl;
@@ -378,35 +408,37 @@ int main (int argn, char* argv []) {
     }
     else if (fill || add) { // fill DB
       std::string input = args.getParameter ("-input");
+      if (input.empty ()) input = "/dev/null";
+      std::ifstream inStream (input.c_str ());
       
       if (getPedestals) {
-	HcalPedestals* pedestals = new HcalPedestals ();
-	readData (input, pedestals);
-	if (defaults) fillDefaults (pedestals); 
+	HcalPedestals* obj = new HcalPedestals ();
+	HcalDbASCIIIO::getObject (inStream, obj); 
+	if (defaults) fillDefaults (obj); 
 	pool::Ref<HcalPedestals> ref;
-	if (!db.storeObject (pedestals, "HcalPedestals", &ref) ||
+	if (!db.storeObject (obj, "HcalPedestals", &ref) ||
 	    !db.storeIOV (ref, run, &iov)) {
 	  std::cerr << "ERROR: failed to store object or its IOV" << std::endl;
 	  return 1;
 	}
       }
       else if (getGains) {
-	HcalGains* gains = new HcalGains ();
-	readData (input, gains);
+	HcalGains* obj = new HcalGains ();
+	HcalDbASCIIIO::getObject (inStream, obj); 
+	if (defaults) fillDefaults (obj); 
 	pool::Ref<HcalGains> ref;
-	if (defaults) fillDefaults (gains); 
-	if (!db.storeObject (gains, "HcalGains", &ref) ||
+	if (!db.storeObject (obj, "HcalGains", &ref) ||
 	    !db.storeIOV (ref, run, &iov)) {
 	  std::cerr << "ERROR: failed to store object or its IOV" << std::endl;
 	  return 1;
 	}
       }
       else if (emap) {
-	HcalElectronicsMap* map = new HcalElectronicsMap ();
-	readData (input, map);
+	HcalElectronicsMap* obj = new HcalElectronicsMap ();
+	HcalDbASCIIIO::getObject (inStream, obj); 
 	pool::Ref<HcalElectronicsMap> ref;
-	if (defaults) fillDefaults (map); 
-	if (!db.storeObject (map, "HcalElectronicsMap", &ref) ||
+	if (defaults) fillDefaults (obj); 
+	if (!db.storeObject (obj, "HcalElectronicsMap", &ref) ||
 	    !db.storeIOV (ref, run, &iov)) {
 	  std::cerr << "ERROR: failed to store object or its IOV" << std::endl;
 	  return 1;
@@ -475,7 +507,7 @@ void Args::printOptionsHelp () const {
   for (unsigned i = 0; i < mOptions.size (); i++) {
     std::map<std::string, std::string>::const_iterator it = mComments.find (mOptions [i]);
     std::string comment = it != mComments.end () ? it->second : "uncommented";
-    sprintf (buffer, "  %-8s <value> : %s", (mOptions [i]).c_str(),  comment.c_str());
+    sprintf (buffer, "  %-8s  : %s", (mOptions [i]).c_str(),  comment.c_str());
     std::cout << buffer << std::endl;
   }
 }
@@ -545,7 +577,7 @@ bool PoolData::storeObject (T* fObject, const std::string& fContainer, pool::Ref
     mService->transaction().commit();
   }
   catch (...) {
-    std::cerr << "PoolData::storeObject  error "  << std::endl; 
+    std::cerr << "PoolData::storeObject  error "  << std::endl;
     return false;
   }
   return true;
@@ -590,6 +622,7 @@ bool PoolData::getObject (const pool::Ref<cond::IOV>& fIOV, unsigned fRun, pool:
   if (!fIOV.isNull ()) {
     // scan IOV, search for valid data
     for (std::map<unsigned long,std::string>::iterator iovi = fIOV->iov.begin (); iovi != fIOV->iov.end (); iovi++) {
+      std::cout << "PoolData::getObject-> size: " << fIOV->iov.size () << " run:" << iovi->first << std::endl;
       if (fRun <= iovi->first) {
 	std::string token = iovi->second;
 	return getObject (token, fObject);
@@ -605,9 +638,10 @@ bool PoolData::getObject (const pool::Ref<cond::IOV>& fIOV, unsigned fRun, pool:
 
 template <class T> 
 bool PoolData::getObject (const std::string& fToken, pool::Ref<T>* fObject) {
-  service ()->transaction().start(pool::ITransaction::READ);
   try {
     *fObject = pool::Ref <T> (service (), fToken);
+    service ()->transaction().start(pool::ITransaction::READ);
+    fObject->isNull ();
     mService->transaction().commit();
   }
   catch( const pool::RelationalTableNotFound& e ){
