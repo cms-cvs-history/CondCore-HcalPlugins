@@ -66,16 +66,16 @@ namespace edmtest
     const HcalGains* mygain=pGains.product();
     const HcalGainWidths* mygainW=pGainWs.product();
 
-    const float* values = myped->getValues (channelID);
+    const float* values = myped->getValues (channelID)->getValues ();
     if (values) std::cout << "pedestals for channel " << channelID << ": "
 			  << values [0] << '/' << values [1] << '/' << values [2] << '/' << values [3] << std::endl; 
-    values = mypedW->getValues (channelID);
+    values = mypedW->getValues (channelID)->getValues ();
     if (values) std::cout << "pedestal widths for channel " << channelID << ": "
 			  << values [0] << '/' << values [1] << '/' << values [2] << '/' << values [3] << std::endl; 
-    values = mygain->getValues (channelID);
+    values = mygain->getValues (channelID)->getValues ();
     if (values) std::cout << "gains for channel " << channelID << ": "
 			  << values [0] << '/' << values [1] << '/' << values [2] << '/' << values [3] << std::endl; 
-    values = mygainW->getValues (channelID);
+    values = mygainW->getValues (channelID)->getValues ();
     if (values) std::cout << "gain widts for channel " << channelID << ": "
 			  << values [0] << '/' << values [1] << '/' << values [2] << '/' << values [3] << std::endl; 
   }
