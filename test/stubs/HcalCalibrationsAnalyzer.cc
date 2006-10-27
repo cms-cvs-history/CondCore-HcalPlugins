@@ -79,5 +79,5 @@ namespace edmtest
     if (values) std::cout << "gain widts for channel " << channelID << ": "
 			  << values [0] << '/' << values [1] << '/' << values [2] << '/' << values [3] << std::endl; 
   }
-  DEFINE_FWK_MODULE(HcalCalibrationsAnalizer)
+  DEFINE_FWK_MODULE(HcalCalibrationsAnalizer);
 }
