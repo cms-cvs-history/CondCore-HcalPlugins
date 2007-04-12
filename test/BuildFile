@@ -16,5 +16,5 @@
 <use name=FWCore/Framework>	
 <use name=FWCore/Services>
 <library file=stubs/HcalCalibrationsAnalyzer.cc name=HcalCalibrationsAnalyzer>
-        <flags SEAL_PLUGIN_NAME="HcalCalibrationsAnalyzer">
+        <flags EDM_PLUGIN=1>
 </library>
