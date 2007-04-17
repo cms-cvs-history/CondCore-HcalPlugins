@@ -12,7 +12,6 @@
 <use name=CondCore/DBCommon>
 <use name=CondCore/IOVService>
 <use name=CondCore/MetaDataService>
-<use name=CondCore/ESSources>
 <use name=FWCore/Framework>	
 <use name=FWCore/Services>
 <library file=stubs/HcalCalibrationsAnalyzer.cc name=HcalCalibrationsAnalyzer>
